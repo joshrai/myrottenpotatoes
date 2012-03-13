@@ -12,23 +12,48 @@ class MoviesController < ApplicationController
 
   def index
     @all_ratings = Movie.all_ratings
+    used_session_params = false
     @sort = params[:sort]
-    if ! @sort
-      @sort = 'id'
-    end
-    @ratings = params[:ratings] || { }
-    where = {}
-    if @ratings && ! @ratings.empty?
-      where[:rating] = @ratings.keys
-    end
-    @ratings_params = { }
-    @ratings.each{ |key, value| @ratings_params["ratings[#{key}]"] = value }
-    logger.debug("ratings=#{@ratings}")
-    logger.debug("where=#{where}")
-    if where.empty?
-      @movies = Movie.order(@sort).all
+    if @sort
+      session[:sort] = @sort
     else
-      @movies = Movie.order(@sort).where(where)
+      @sort = session[:sort]
+      if ! @sort
+        @sort = 'id'
+      end
+      used_session_params = true
+    end
+    @ratings = params[:ratings]
+    if ! @ratings
+      @ratings = { }
+    end
+    if ! @ratings.empty? || params[:commit]
+      session[:ratings] = @ratings
+    else
+      @ratings = session[:ratings]
+      if ! @ratings
+        @ratings = { }
+      end
+      used_session_params = true
+    end
+    if used_session_params
+      redirect_to movies_path({ :sort => @sort,
+                                :ratings => @ratings,
+                                :commit => 'Refresh' })
+    else
+      where = {}
+      if @ratings && ! @ratings.empty?
+        where[:rating] = @ratings.keys
+      end
+      @ratings_params = { }
+      @ratings.each{ |key, value| @ratings_params["ratings[#{key}]"] = value }
+      logger.debug("ratings=#{@ratings}")
+      logger.debug("where=#{where}")
+      if where.empty?
+        @movies = Movie.order(@sort).all
+      else
+        @movies = Movie.order(@sort).where(where)
+      end
     end
   end
 
